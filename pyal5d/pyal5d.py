@@ -6,6 +6,10 @@ SHOULDER = 1
 ELBOW = 2
 WRIST = 3
 GRIP = 4
+L1 = 7.10
+L2 = 14.4
+L3 = 18.5
+L4 = 7.50
 
 
 class RoboticArm(object):
@@ -22,7 +26,7 @@ class RoboticArm(object):
             gri = (1300, 2400)
         self.bounds = np.array([bas, shl, elb, wri, gri])
         self.serial_port = None
-        self.thetas = np.array([None, None, None, None, None])
+        self.thetas = np.array([np.nan, np.nan, np.nan, np.nan, np.nan])
 
     def open(self, name='/dev/ttyUSB0'):
         self.serial_port = serial.Serial(name,
@@ -32,11 +36,13 @@ class RoboticArm(object):
             self.serial_port.open()
 
     def close(self):
-        self.serial_port.close()
+        if self.serial_port is not None:
+            self.serial_port.close()
         self.serial_port = None
 
     def send(self, cmd):
-        self.serial_port.write(cmd)
+        if self.serial_port is not None:
+            self.serial_port.write(cmd)
 
     def lock(self, channel, pos):
         channel = np.atleast_1d(channel)
@@ -101,7 +107,7 @@ class RoboticArm(object):
 
         theta = self.pos2ang(pos, channel)
         self.thetas[channel] = theta
-        cmd = bytes("%sT%d\r" % (cmd, time))
+        cmd = bytes("%sT%d\r" % (cmd, time), 'utf-8')
         self.send(cmd)
 
     def home(self):
@@ -110,3 +116,21 @@ class RoboticArm(object):
     def increment(self, channel, dtheta, time=1500):
         theta = self.thetas[channel] + dtheta
         self.move(channel, theta, time=time)
+
+    @property
+    def coords(self):
+        thetas = self.thetas * np.pi / 180
+
+        c1, c2, c3, c4, _ = np.cos(thetas)
+        s1, s2, s3, s4, _ = np.sin(thetas)
+        c23 = np.cos(thetas[1] + thetas[2])
+        s23 = np.sin(thetas[1] + thetas[2])
+        c234 = np.cos(thetas[1] + thetas[2] + thetas[3])
+        s234 = np.sin(thetas[1] + thetas[2] + thetas[3])
+
+        x = c1 * (c234 * L4 + c23 * L3 + c2 * L2)
+        y = s1 * (c234 * L4 + c23 * L3 + c2 * L2)
+        z = s234 * L4 + s23 * L3 + s2 * L2 + L1
+        phi = self.thetas[1] + self.thetas[2] + self.thetas[3]
+        
+        return (x, y, z, phi)
