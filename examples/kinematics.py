@@ -1,18 +1,21 @@
-import cv2
+from time import sleep
+
 import numpy as np
-from PIL import Image, ImageFont, ImageDraw
+from inputs import get_key
 from vpython import *
+from vpython.no_notebook import stop_server
 
 from pyal5d import *
 
-if __name__ == '__main__':
+N = 512
+M = 512
 
-    cv2.namedWindow('angles')
-    fontpath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-    font = ImageFont.truetype(fontpath, 32)
-    img = np.zeros((480, 640))
-    cv2.imshow('angles', img)
+if __name__ == '__main__':
     
+    scene.width = N
+    scene.height = M
+    scene.resizable = False
+
     arm = RoboticArm()
     try:
         arm.open()
@@ -20,49 +23,78 @@ if __name__ == '__main__':
         print("Couldn't connect with serial port")
 
     arm.home()
+    sleep(2)
     
-    v = 1
-    t = 50
+    L = label(pos=vec(0,0,0), pixel_pos=True, xoffset=75, yoffset=-75, 
+              height=20, line=True, align='left', font='monospace',
+              text='\u03B8=[%.1f, %.1f, %.1f, %.1f]'
+                   '\nx=%.3f cm'
+                   '\ny=%.3f cm'
+                   '\nz=%.3f cm'
+                   '\n\u03D5=%.2f' % 
+                    (*arm.thetas[:GRIP], *arm.coords))
+
+    label(pos=vec(N, M,0), pixel_pos=True, xoffset=-100, yoffset=100,
+          height=20, line=True, align='left', font='monospace',
+          text='CONTROLS:'
+               '\na/z - base'
+               '\ns/x - shoulder'
+               '\nd/c - elbow'
+               '\nf/v - wrist'
+               '\ng/b - grip'
+               '\n<space> - save coords')
+
+    cvs = canvas(title='', width=N, height=M, align='right', resizable=False)
+    c = curve(retain=100, color=color.blue)
+
+    v = 0.5
+    t = 10
     coords = []
 
     while True:
-        img = np.zeros((480, 640))
-        img_pil = Image.fromarray(img)
-        draw = ImageDraw.Draw(img_pil)
-        draw.text((60, 80),
-            '\u03B8=[{0:.1f}, {1:.1f}, {2:.1f}, {3:.1f}]\n'
-            'x={5:.3f} cm\ny={6:.3f} cm\nz={7:.3f} cm'.format(
-                *arm.thetas, *arm.coords), font=font)
-        img = np.array(img_pil)
-        cv2.imshow('angles', img)
+        c.append(pos=vector(*arm.coords[:-1]))
 
-        key = chr(cv2.waitKey())
-        print('key = ', key)
-        np.set_printoptions(precision=3)
+        L.text = '\u03B8=[%.1f, %.1f, %.1f, %.1f]'
+                 '\nx=%.3f cm'
+                 '\ny=%.3f cm'
+                 '\nz=%.3f cm'
+                 '\n\u03D5=%.2f' %
+                    (*arm.thetas[:GRIP], *arm.coords)
 
-        if key == 'a':
-            arm.increment(0, v, t)
-        if key == 'z':
-            arm.increment(0, -v, t)
-        if key == 's':
-            arm.increment(1, v, t)
-        if key == 'x':
-            arm.increment(1, -v, t)
-        if key == 'd':
-            arm.increment(2, v, t)
-        if key == 'c':
-            arm.increment(2, -v, t)
-        if key == 'f':
-            arm.increment(3, v, t)
-        if key == 'v':
-            arm.increment(3, -v, t)
-        if key == 'g':
-            arm.increment(4, v, t)
-        if key == 'b':
-            arm.increment(4, -v, t)
-        if key == ' ':
-            coords.append(arm.coords)
-            print(np.array(coords))
-        if key == chr(27):
+        sleep(t * 1e-3)
+        event = get_key()
+        key = event[0].code
+
+        if key == 'KEY_ESC':
             arm.close()
+            stop_server()
             break
+        if key == 'KEY_A':
+            arm.increment(0, v, t)
+        if key == 'KEY_Z':
+            arm.increment(0, -v, t)
+        if key == 'KEY_S':
+            arm.increment(1, v, t)
+        if key == 'KEY_X':
+            arm.increment(1, -v, t)
+        if key == 'KEY_D':
+            arm.increment(2, v, t)
+        if key == 'KEY_C':
+            arm.increment(2, -v, t)
+        if key == 'KEY_F':
+            arm.increment(3, v, t)
+        if key == 'KEY_V':
+            arm.increment(3, -v, t)
+
+        if key == 'KEY_G':
+            arm.hold()
+            sleep(0.5)
+        if key == 'KEY_B':
+            arm.release()
+            sleep(0.5)
+
+        if key == 'KEY_SPACE':
+            for coord in coords:
+                curve(vec(*coord), vec(*arm.coords[:-1]))
+            coords.append(arm.coords[:-1])
+            sphere(pos=vector(*coords[-1]), radius=1)

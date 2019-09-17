@@ -63,9 +63,10 @@ class RoboticArm(object):
         assert ang.size == m, "incompatible sizes ({} channels, {} angles)".format(m, ang.size)
 
         reverse = lambda x: 180 - x
+        invert = lambda x: -x
         delay = lambda x: x + 90
         same = lambda x: x
-        funcs = np.array([reverse, same, reverse, delay, same])
+        funcs = np.array([reverse, same, invert, delay, same])
 
         theta = np.array([funcs[chn[i]](ang[i]) for i in range(m)])
         pos = theta / .09 + 500
@@ -80,9 +81,10 @@ class RoboticArm(object):
         assert pos.size == m, "incompatible sizes ({} channels, {} pulses)".format(m, pos.size)
 
         reverse = lambda x: 180 - x
+        invert = lambda x: -x
         undelay = lambda x: x - 90
         same = lambda x: x
-        funcs = np.array([reverse, same, reverse, undelay, same])
+        funcs = np.array([reverse, same, invert, undelay, same])
 
         theta = (pos - 500) * .09
         ang = np.array([funcs[chn[i]](theta[i]) for i in range(m)])
@@ -111,11 +113,17 @@ class RoboticArm(object):
         self.send(cmd)
 
     def home(self):
-        self.move(theta=[90, 90, 90, 0, 90], channel=[0, 1, 2, 3, 4])
+        self.move(channel=[0, 1, 2, 3, 4], theta=[90, 90, -90, 0, 90])
 
     def increment(self, channel, dtheta, time=1500):
         theta = self.thetas[channel] + dtheta
         self.move(channel, theta, time=time)
+
+    def hold(self, time=500):
+        self.move(channel=GRIP, theta=0, time=time)
+
+    def release(self, time=500):
+        self.move(channel=GRIP, theta=180, time=time)
 
     @property
     def coords(self):
@@ -133,4 +141,4 @@ class RoboticArm(object):
         z = s234 * L4 + s23 * L3 + s2 * L2 + L1
         phi = self.thetas[1] + self.thetas[2] + self.thetas[3]
         
-        return (x, y, z, phi)
+        return x, y, z, phi
