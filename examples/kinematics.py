@@ -14,7 +14,6 @@ if __name__ == '__main__':
     
     scene.width = N
     scene.height = M
-    scene.resizable = False
 
     arm = RoboticArm()
     try:
@@ -34,7 +33,7 @@ if __name__ == '__main__':
                    '\n\u03D5=%.2f' % 
                     (*arm.thetas[:GRIP], *arm.coords))
 
-    label(pos=vec(N, M,0), pixel_pos=True, xoffset=-100, yoffset=100,
+    label(pos=vec(0, M,0), pixel_pos=True, xoffset=100, yoffset=100,
           height=20, line=True, align='left', font='monospace',
           text='CONTROLS:'
                '\na/z - base'
@@ -44,24 +43,21 @@ if __name__ == '__main__':
                '\ng/b - grip'
                '\n<space> - save coords')
 
-    cvs = canvas(title='', width=N, height=M, align='right', resizable=False)
     c = curve(retain=100, color=color.blue)
 
-    v = 0.5
-    t = 10
+    v = 1.
+    t = 50
     coords = []
 
     while True:
         c.append(pos=vector(*arm.coords[:-1]))
 
-        L.text = '\u03B8=[%.1f, %.1f, %.1f, %.1f]'
-                 '\nx=%.3f cm'
-                 '\ny=%.3f cm'
-                 '\nz=%.3f cm'
-                 '\n\u03D5=%.2f' %
-                    (*arm.thetas[:GRIP], *arm.coords)
+        L.text = '\u03B8=[%.1f, %.1f, %.1f, %.1f]' \
+                 '\nx=%.3f cm' \
+                 '\ny=%.3f cm' \
+                 '\nz=%.3f cm' \
+                 '\n\u03D5=%.2f' % (*arm.thetas[:GRIP], *arm.coords)
 
-        sleep(t * 1e-3)
         event = get_key()
         key = event[0].code
 

@@ -120,10 +120,10 @@ class RoboticArm(object):
         self.move(channel, theta, time=time)
 
     def hold(self, time=500):
-        self.move(channel=GRIP, theta=0, time=time)
+        self.move(channel=GRIP, theta=180, time=time)
 
     def release(self, time=500):
-        self.move(channel=GRIP, theta=180, time=time)
+        self.move(channel=GRIP, theta=0, time=time)
 
     @property
     def coords(self):
