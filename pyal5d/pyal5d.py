@@ -26,7 +26,7 @@ class RoboticArm(object):
             gri = (1300, 2400)
         self.bounds = np.array([bas, shl, elb, wri, gri])
         self.serial_port = None
-        self.thetas = np.array([np.nan, np.nan, np.nan, np.nan, np.nan])
+        self._thetas = np.array([np.nan, np.nan, np.nan, np.nan, np.nan])
 
     def open(self, name='/dev/ttyUSB0'):
         self.serial_port = serial.Serial(name,
@@ -64,9 +64,9 @@ class RoboticArm(object):
 
         reverse = lambda x: 180 - x
         invert = lambda x: -x
-        delay = lambda x: x + 90
+        rotate = lambda x: x + 90
         same = lambda x: x
-        funcs = np.array([reverse, same, invert, delay, same])
+        funcs = np.array([reverse, same, invert, rotate, same])
 
         theta = np.array([funcs[chn[i]](ang[i]) for i in range(m)])
         pos = theta / .09 + 500
@@ -82,9 +82,9 @@ class RoboticArm(object):
 
         reverse = lambda x: 180 - x
         invert = lambda x: -x
-        undelay = lambda x: x - 90
+        rotate = lambda x: x - 90
         same = lambda x: x
-        funcs = np.array([reverse, same, invert, undelay, same])
+        funcs = np.array([reverse, same, invert, rotate, same])
 
         theta = (pos - 500) * .09
         ang = np.array([funcs[chn[i]](theta[i]) for i in range(m)])
@@ -108,7 +108,7 @@ class RoboticArm(object):
             cmd += "#%dP%d" % (channel[i], pos[i])
 
         theta = self.pos2ang(pos, channel)
-        self.thetas[channel] = theta
+        self._thetas[channel] = theta
         cmd = bytes("%sT%d\r" % (cmd, time), 'utf-8')
         self.send(cmd)
 
@@ -116,7 +116,7 @@ class RoboticArm(object):
         self.move(channel=[0, 1, 2, 3, 4], theta=[90, 90, -90, 0, 90])
 
     def increment(self, channel, dtheta, time=1500):
-        theta = self.thetas[channel] + dtheta
+        theta = self._thetas[channel] + dtheta
         self.move(channel, theta, time=time)
 
     def hold(self, time=500):
@@ -126,8 +126,12 @@ class RoboticArm(object):
         self.move(channel=GRIP, theta=0, time=time)
 
     @property
+    def thetas(self):
+        return self._thetas
+    
+    @property
     def coords(self):
-        thetas = self.thetas * np.pi / 180
+        thetas = self._thetas * np.pi / 180
 
         c1, c2, c3, c4, _ = np.cos(thetas)
         s1, s2, s3, s4, _ = np.sin(thetas)
@@ -139,6 +143,42 @@ class RoboticArm(object):
         x = c1 * (c234 * L4 + c23 * L3 + c2 * L2)
         y = s1 * (c234 * L4 + c23 * L3 + c2 * L2)
         z = s234 * L4 + s23 * L3 + s2 * L2 + L1
-        phi = self.thetas[1] + self.thetas[2] + self.thetas[3]
+        phi = self._thetas[1] + self._thetas[2] + self._thetas[3]
         
         return x, y, z, phi
+
+    def goto(self, x=None, y=None, z=None, phi=None):
+        curr = self.coords
+        if x is None:
+            x = curr[0]
+        if y is None:
+            y = curr[1]
+        if z is None:
+            z = curr[2]
+        if phi is None:
+            phi = curr[3]
+
+        phi = np.radians(phi)
+        cosphi = np.cos(phi)
+        sinphi = np.sin(phi)
+
+        theta1 = np.arctan2(y, x)
+
+        R = np.hypot(x, y) - cosphi * L4
+        H = z - sinphi * L4 - L1
+        D = np.hypot(R, H)
+
+        cb = (D ** 2 + L2 ** 2 - L3 ** 2) / (2 * L2 * D)
+        theta2 = np.arccos(cb) + np.arctan2(H, R)   # 0 < theta2 < 180
+
+        c3 = (D ** 2 - L2 ** 2 - L3 ** 2) / (2 * L2 * L3)
+        theta3 = - np.arccos(c3)  # -180 < theta3 < 0
+
+        theta4 = phi - theta2 - theta3
+
+        theta1 = np.degrees(theta1)
+        theta2 = np.degrees(theta2)
+        theta3 = np.degrees(theta3)
+        theta4 = np.degrees(theta4)
+
+        return theta1, theta2, theta3, theta4
