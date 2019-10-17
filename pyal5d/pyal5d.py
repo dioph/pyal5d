@@ -176,9 +176,7 @@ class RoboticArm(object):
 
         theta4 = phi - theta2 - theta3
 
-        theta1 = np.degrees(theta1)
-        theta2 = np.degrees(theta2)
-        theta3 = np.degrees(theta3)
-        theta4 = np.degrees(theta4)
+        thetas = np.degrees([theta1, theta2, theta3, theta4])
+        self.move(channel=[0, 1, 2, 3], theta=thetas)
 
-        return theta1, theta2, theta3, theta4
+        return thetas
