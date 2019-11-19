@@ -6,10 +6,10 @@ SHOULDER = 1
 ELBOW = 2
 WRIST = 3
 GRIP = 4
-L1 = 7.10
-L2 = 14.4
-L3 = 18.5
-L4 = 7.50
+L1 =  6.985
+L2 = 14.605
+L3 = 18.500
+L4 =  8.730
 
 
 class RoboticArm(object):
@@ -147,7 +147,7 @@ class RoboticArm(object):
         
         return x, y, z, phi
 
-    def goto(self, x=None, y=None, z=None, phi=None):
+    def goto(self, x=None, y=None, z=None, phi=None, time=1500):
         curr = self.coords
         if x is None:
             x = curr[0]
@@ -159,13 +159,10 @@ class RoboticArm(object):
             phi = curr[3]
 
         phi = np.radians(phi)
-        cosphi = np.cos(phi)
-        sinphi = np.sin(phi)
-
         theta1 = np.arctan2(y, x)
 
-        R = np.hypot(x, y) - cosphi * L4
-        H = z - sinphi * L4 - L1
+        R = np.hypot(x, y) - np.cos(phi) * L4
+        H = z - np.sin(phi) * L4 - L1
         D = np.hypot(R, H)
 
         cb = (D ** 2 + L2 ** 2 - L3 ** 2) / (2 * L2 * D)
@@ -177,6 +174,6 @@ class RoboticArm(object):
         theta4 = phi - theta2 - theta3
 
         thetas = np.degrees([theta1, theta2, theta3, theta4])
-        self.move(channel=[0, 1, 2, 3], theta=thetas)
+        self.move(channel=[0, 1, 2, 3], theta=thetas, time=time)
 
         return thetas
